@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ระบบจัดการบันทึกส่วนบุคคล</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-icon">▤</span><div><b>Personal Notes</b><small>ระบบจัดการบันทึกส่วนบุคคล</small></div></div>
+    <a class="nav active" href="{{ url_for('index') }}">⌂　หน้าหลัก</a>
+    <a class="nav" href="#add-form">＋　เพิ่มบันทึก</a>
+    <a class="nav" href="#search">⌕　ค้นหาข้อมูล</a>
+    <a class="nav" href="#categories">▦　หมวดหมู่</a>
+    <a class="nav" href="#stats">▥　สถิติ</a>
+    <div class="sidebar-bottom">ระบบบันทึกข้อมูลส่วนตัว</div>
+  </aside>
+
+  <main class="main">
+    <header class="welcome">
+      <div>
+        <p class="eyebrow">PERSONAL ORGANIZER</p>
+        <h1>ยินดีต้อนรับ!</h1>
+        <p class="subtitle">ระบบจัดการบันทึกส่วนบุคคลของคุณ</p>
+        <p class="hint">✦　เก็บทุกความสำคัญไว้ในที่เดียว</p>
+      </div>
+      <div class="hero-art" aria-hidden="true">🗒️✏️</div>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}{% for kind, message in messages %}
+        <div class="flash {{ kind }}">{{ message }}</div>
+      {% endfor %}{% endif %}
+    {% endwith %}
+
+    <section class="stats-grid" id="stats">
+      <article class="stat-card"><div class="stat-icon blue">▤</div><span>บันทึกทั้งหมด</span><strong>{{ all_count }}</strong><small>รายการ</small></article>
+      <article class="stat-card"><div class="stat-icon green">▱</div><span>หมวดหมู่ที่ใช้มากที่สุด</span><strong class="stat-word">{{ popular_category }}</strong><small>{{ counts.get(popular_category, 0) if popular_category != 'ยังไม่มี' else 0 }} รายการ</small></article>
+      <article class="stat-card"><div class="stat-icon purple">☆</div><span>คำสำคัญที่ใช้บ่อย</span><strong class="stat-word">{{ popular_tag }}</strong><small>จากคำสำคัญที่บันทึก</small></article>
+      <article class="stat-card"><div class="stat-icon pink">▦</div><span>บันทึกล่าสุด</span><strong class="stat-word">{{ latest.title if latest else 'ยังไม่มีข้อมูล' }}</strong><small>{{ latest.date if latest else 'เพิ่มบันทึกแรกของคุณ' }}</small></article>
+    </section>
+
+    <div class="content-grid">
+      <div class="left-column">
+        <section class="panel" id="add-form">
+          <h2><span class="heading-icon">＋</span> เพิ่มบันทึกใหม่</h2>
+          <form action="{{ url_for('add_note') }}" method="post">
+            <label>ชื่อเรื่อง <em>*</em><input name="title" required maxlength="120" placeholder="เช่น ส่งงานโครงงาน, นัดเพื่อน, อ่านหนังสือ"></label>
+            <label>รายละเอียด <em>*</em><textarea name="content" required rows="4" placeholder="กรอกรายละเอียดของบันทึก..."></textarea></label>
+            <div class="form-row">
+              <label>หมวดหมู่<select name="category">{% for cat in categories %}<option>{{ cat }}</option>{% endfor %}</select></label>
+              <label>วันที่<input name="date" type="date" value="{{ today if today else '' }}" required></label>
+              <label>คำสำคัญ (คั่นด้วย ,)<input name="tags" placeholder="เช่น python, งาน, สำคัญ"></label>
+            </div>
+            <button class="primary" type="submit">▣　บันทึกข้อมูล</button>
+          </form>
+        </section>
+
+        <section class="panel">
+          <div class="section-title"><h2>▤ รายการบันทึก</h2><span class="count-pill">{{ notes|length }} รายการ</span></div>
+          <div class="note-list">
+            {% for note in notes %}
+            <article class="note">
+              <div class="note-icon">{{ '🎓' if note.category == 'การเรียน' else '📅' if note.category == 'งานที่ต้องทำ' else '✦' }}</div>
+              <div class="note-body">
+                <div class="note-title-row"><h3>{{ note.title }}</h3><span class="category-tag">{{ note.category }}</span></div>
+                <p class="note-content">{{ note.content }}</p>
+                <div class="note-meta">{{ note.date }}　·　รหัส {{ note.id }}{% if note.tags %}　·　#{{ note.tags|join(' #') }}{% endif %}</div>
+                <details class="edit-details">
+                  <summary>แก้ไขบันทึก</summary>
+                  <form action="{{ url_for('edit_note', note_id=note.id) }}" method="post" class="edit-form">
+                    <label>ชื่อเรื่อง<input name="title" required value="{{ note.title }}"></label>
+                    <label>รายละเอียด<textarea name="content" required rows="3">{{ note.content }}</textarea></label>
+                    <div class="form-row">
+                      <label>หมวดหมู่<select name="category">{% for cat in categories %}<option {% if cat == note.category %}selected{% endif %}>{{ cat }}</option>{% endfor %}</select></label>
+                      <label>วันที่<input type="date" name="date" value="{{ note.date }}" required></label>
+                      <label>คำสำคัญ<input name="tags" value="{{ note.tags|join(', ') }}"></label>
+                    </div>
+                    <button class="primary" type="submit">บันทึกการแก้ไข</button>
+                  </form>
+                </details>
+              </div>
+              <form class="delete-form" action="{{ url_for('delete_note', note_id=note.id) }}" method="post" onsubmit="return confirm('ต้องการลบบันทึกนี้หรือไม่?')">
+                <button class="delete-btn" title="ลบบันทึก" aria-label="ลบบันทึก">×</button>
+              </form>
+            </article>
+            {% else %}
+            <div class="empty"><div>🗒️</div><b>ยังไม่มีบันทึกที่ตรงกับเงื่อนไข</b><p>เพิ่มบันทึกใหม่ หรือเปลี่ยนคำค้นหา</p></div>
+            {% endfor %}
+          </div>
+        </section>
+      </div>
+
+      <div class="right-column">
+        <section class="panel" id="search">
+          <h2><span class="heading-icon">⌕</span> ค้นหาข้อมูล</h2>
+          <form action="{{ url_for('index') }}" method="get" class="search-form">
+            <label>คำค้นหา<input name="q" value="{{ keyword }}" placeholder="พิมพ์คำค้นหา..."></label>
+            <label>หมวดหมู่<select name="category"><option value="">ค้นหาทุกหมวดหมู่</option>{% for cat in categories %}<option value="{{ cat }}" {% if category_filter == cat %}selected{% endif %}>{{ cat }}</option>{% endfor %}</select></label>
+            <label>จัดเรียง<select name="sort"><option value="newest" {% if sort == 'newest' %}selected{% endif %}>วันที่ใหม่ไปเก่า</option><option value="oldest" {% if sort == 'oldest' %}selected{% endif %}>วันที่เก่าไปใหม่</option><option value="title" {% if sort == 'title' %}selected{% endif %}>ชื่อเรื่อง ก-ฮ</option></select></label>
+            <button class="primary full" type="submit">⌕　ค้นหา</button>
+            <a class="reset-link" href="{{ url_for('index') }}">ล้างตัวกรอง</a>
+          </form>
+        </section>
+        <section class="panel" id="categories">
+          <h2><span class="heading-icon">▦</span> หมวดหมู่</h2>
+          <div class="category-list">
+            {% for cat in categories %}
+            <a href="{{ url_for('index', category=cat) }}" class="category-line"><span><i class="dot dot-{{ loop.index }}"></i>{{ cat }}</span><b>{{ counts.get(cat, 0) }}</b></a>
+            {% endfor %}
+          </div>
+        </section>
+        <section class="panel">
+          <h2><span class="heading-icon">▥</span> สถิติการใช้งาน</h2>
+          <div class="stat-line"><span>จำนวนบันทึกทั้งหมด</span><b>{{ all_count }}</b></div>
+          {% for cat in categories %}
+          <div class="stat-line"><span>{{ cat }}</span><b>{{ counts.get(cat, 0) }}{% if all_count %}<small> ({{ '%.0f'|format(counts.get(cat, 0) * 100 / all_count) }}%)</small>{% endif %}</b></div>
+          {% endfor %}
+        </section>
+      </div>
+    </div>
+    <footer>Personal Notes Manager　|　พัฒนาด้วย Python + Flask</footer>
+  </main>
+</body>
+</html>
